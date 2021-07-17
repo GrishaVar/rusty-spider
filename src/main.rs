@@ -2,6 +2,7 @@ use std::io::Read;
 use rand::thread_rng;
 use rand::seq::SliceRandom;
 use itertools::iproduct;
+use itertools::enumerate;
 use std::char;
 
 enum Input {
@@ -169,7 +170,7 @@ fn init_game(deck: Vec<Card>) -> GameState {
             (&deck[92..98]).to_vec(),
             (&deck[98..]).to_vec(),
         ],
-        hidden: [0; 10],
+        hidden: [4, 4, 4, 4, 4, 4, 5, 5, 5, 5],
         completed: 0,
     }
 }
@@ -206,6 +207,7 @@ fn game_step(game: &mut GameState, input: Input) {
             }
             let temp = &mut game.piles[source].drain(index..).collect();
             game.piles[target].append(temp);
+            if index == game.hidden[source] {game.hidden[source] -= 1;}
         },
         CompleteSuit{pos} => {
             let i = game.piles[pos].len() - 13;
@@ -285,10 +287,13 @@ fn print_game(game: &GameState) {
 
     for i in (0..max).rev() {
         print!("{:x} ", i);
-        for pile in &game.piles {
+        for (j, pile) in enumerate(&game.piles) {
             match pile.get(i) {
                 None       => print!("   "),
-                Some(card) => print!("{}  ", card.to_char(false)),
+                Some(card) => print!(
+                    "{}  ",
+                    card.to_char(game.hidden[j] > i),
+                ),
             }
         }
         println!(" ");
