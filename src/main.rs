@@ -16,6 +16,13 @@ enum Input {
     Help,
 }
 
+#[derive(Clone)]
+enum Action {
+    Move{source:usize, source_i:usize, target:usize, target_i:usize, discover:bool},
+    Stack,
+    CompleteSuit{pos:usize, suit:Suit, discover:bool},
+}
+
 #[derive(Clone, Copy, PartialEq)]
 enum Suit {Hearts, Spades, Diamonds, Clubs}
 impl Suit {
@@ -131,6 +138,22 @@ struct GameState {  // TODO: change value to face
     piles: [Vec<Card>; 10],
     hidden: [usize; 10],
     completed: u8,
+    history: Vec<Action>,
+    history_head: usize,
+}
+impl GameState {
+    fn write(&mut self, action: Action) {
+        self.history.truncate(self.history_head);
+        self.history.push(action);
+        self.history_head += 1;
+    }
+    fn discover(&mut self, pile: usize) -> bool {
+        println!("{} {} {}", pile, self.hidden[pile], self.piles[pile].len());
+        if self.hidden[pile] == self.piles[pile].len() {
+            self.hidden[pile] -= 1;
+            true
+        } else {false}
+    }
 }
 
 fn generate_deck(suits: u8) -> Vec<Card> {
@@ -172,6 +195,8 @@ fn init_game(deck: Vec<Card>) -> GameState {
         ],
         hidden: [4, 4, 4, 4, 4, 4, 5, 5, 5, 5],
         completed: 0,
+        history: Vec::with_capacity(50),
+        history_head: 0,
     }
 }
 
@@ -192,10 +217,24 @@ fn is_sequence(pile: &Vec<Card>, index: usize) -> bool {
 fn game_step(game: &mut GameState, input: Input) {
     use Input::*;
     match input {
-        NewGame => {println!("New Game...\nUndoing...");},
-        Quit => {println!("Bye!"); panic!("bazinga")},  // TODO
-        Undo => {println!("Undoing...\nRedoing...");},
-        Redo => {println!("Redoing...\nUndoing...");},
+        NewGame => {println!("New Game...\nUndoing...")},
+        Quit => {println!("Bye!"); panic!("bazinga")},  // TODO exis properly
+        Undo => {
+            if game.history_head == 0 {
+                println!("Nothing to undo");
+            } else {
+                game.history_head -= 1;
+                undo_action(game, game.history[game.history_head].clone());
+            }
+        },
+        Redo => {
+            if game.history_head == game.history.len() {
+                println!("Nothing to redo");
+            } else {
+                redo_action(game, game.history[game.history_head].clone());
+                game.history_head += 1;
+            }
+        },
         Help => {
             println!("H: print this again\nN: new game\nQ: quit\nS: push from stack\nU: undo\nR: redo\nCn: complete nth pile suit\nMxyz: move card of xth pile at index y to zth pile");
         },
@@ -205,23 +244,77 @@ fn game_step(game: &mut GameState, input: Input) {
                 if game.piles[target].last().unwrap().value.succ().unwrap()
                     != game.piles[source][index].value {return}  // source matches target
             }
-            let temp = &mut game.piles[source].drain(index..).collect();
-            game.piles[target].append(temp);
-            if index == game.hidden[source] {game.hidden[source] -= 1;}
+            let target_i = game.piles[target].len();
+            let cards = &mut game.piles[source].drain(index..).collect();
+            game.piles[target].append(cards);
+            let discover = game.discover(source);
+            game.write(Action::Move{source, source_i: index, target, target_i, discover});
         },
         CompleteSuit{pos} => {
             let i = game.piles[pos].len() - 13;
             if !is_sequence(&game.piles[pos], i) {return}
-            game.piles[pos].truncate(i);  // TODO: test
+            let suit = game.piles[pos].last().unwrap().suit;
+            game.piles[pos].truncate(i);
             game.completed += 1;
-            if game.completed == 10 {println!("You win!")};
+            if game.completed == 8 {println!("You win!")};
+            let discover = game.discover(pos);
+            game.write(Action::CompleteSuit{pos, suit, discover});
         },
         Stack => {
-            if game.stack.len() == 0 {println!("Stack exhausted"); return}
+            if game.stack.len() == 0 {
+                println!("Stack exhausted");
+                return;
+            }
             for pile in &mut game.piles {
                 pile.push(game.stack.pop().unwrap());
             }
+            game.write(Action::Stack);
         },
+    }
+}
+
+fn undo_action(game: &mut GameState, action: Action) {
+    use Action::*;
+    match action {
+        Stack => {
+            for pile in &mut game.piles {  // TODO: reverse this in a nice way
+                game.stack.push(pile.pop().unwrap());
+            }
+        }
+        CompleteSuit {pos, suit, discover} => {
+            for value in Value::VALUES {
+                game.piles[pos].push(Card{suit, value});
+            }
+            if discover {game.hidden[pos] += 1;}
+        }
+        Move {source, source_i:_, target, target_i, discover} => {
+            let cards = &mut game.piles[target].drain(target_i..).collect();
+            game.piles[source].append(cards);
+            if discover {game.hidden[source] += 1;}
+        }
+    }
+}
+
+fn redo_action(game: &mut GameState, action: Action) {
+    // TODO: these are all basically the same as in game_step
+    // abstract into a do_action function?
+    use Action::*;
+    match action {
+        Stack => {
+            for pile in &mut game.piles {
+                pile.push(game.stack.pop().unwrap());
+            }
+        }
+        CompleteSuit {pos, suit:_, discover} => {
+            let i = game.piles[pos].len() - 13;
+            game.piles[pos].truncate(i);
+            if discover {game.hidden[pos] -= 1;}
+        }
+        Move {source, source_i, target, target_i:_, discover} => {
+            let cards = &mut game.piles[source].drain(source_i..).collect();
+            game.piles[target].append(cards);
+            if discover {game.hidden[source] -= 1;}
+        }
     }
 }
 
