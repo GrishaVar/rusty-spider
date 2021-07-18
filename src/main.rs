@@ -110,29 +110,31 @@ impl Card {
     }
     fn to_char(&self, hidden: bool) -> char {
         char::from_u32(
-            if hidden {0x1F0A0} else {
-                0x1F000 | match self.suit {
+            if hidden {
+                0x01F0A0
+            } else {
+                0x01F000 | match self.suit {
                     Suit::Spades   => 0xA0,
                     Suit::Hearts   => 0xB0,
                     Suit::Diamonds => 0xC0,
                     Suit::Clubs    => 0xD0,
                 } | match self.value {
-                    Value::King  => 0xE,
-                    Value::Queen => 0xD,
-                    Value::Jack  => 0xB,
-                    Value::Ten   => 0xA,
-                    Value::Nine  => 0x9,
-                    Value::Eight => 0x8,
-                    Value::Seven => 0x7,
-                    Value::Six   => 0x6,
-                    Value::Five  => 0x5,
-                    Value::Four  => 0x4,
-                    Value::Three => 0x3,
-                    Value::Two   => 0x2,
-                    Value::Ace   => 0x1,
+                    Value::King  => 0x0E,
+                    Value::Queen => 0x0D,
+                    Value::Jack  => 0x0B,
+                    Value::Ten   => 0x0A,
+                    Value::Nine  => 0x09,
+                    Value::Eight => 0x08,
+                    Value::Seven => 0x07,
+                    Value::Six   => 0x06,
+                    Value::Five  => 0x05,
+                    Value::Four  => 0x04,
+                    Value::Three => 0x03,
+                    Value::Two   => 0x02,
+                    Value::Ace   => 0x01,
                 }
             }
-        ).expect("something went very wrong")
+        ).expect("Grigri has refused to make an informative error message, but something is bad :(")
     }
 }
 
@@ -150,12 +152,15 @@ impl GameState {
         self.history.push(action);
         self.history_head += 1;
     }
+
     fn discover(&mut self, pile: usize) -> bool {
         println!("{} {} {}", pile, self.hidden[pile], self.piles[pile].len());
         if self.hidden[pile] == self.piles[pile].len() && self.hidden[pile] > 0 {
             self.hidden[pile] -= 1;
-            true
-        } else {false}
+            return true
+        } else {
+            return false
+        }
     }
 }
 
@@ -210,18 +215,24 @@ fn is_sequence(pile: &Vec<Card>, index: usize) -> bool {
     let slice2 = {let i = index+1; &pile[i..]};
  
     for (pred, succ) in slice1.iter().zip(slice2) {
-        if pred.value.succ().is_none() {return false}
-        if pred.value.succ().unwrap() != succ.value {return false}
-        if pred.suit != succ.suit {return false}
+        if pred.value.succ().is_none() {
+            return false
+        }
+        if pred.value.succ().unwrap() != succ.value {
+            return false
+        }
+        if pred.suit != succ.suit {
+            return false
+        }
     }
-    true
+    return true
 }
 
 fn game_step(game: &mut GameState, input: Input) {
     use Input::*;
     match input {
         NewGame => {println!("New Game...\nUndoing...")},
-        Quit => {println!("Bye!"); panic!("bazinga")},  // TODO exis properly
+        Quit => {println!("Bye!"); panic!("Success")},  // TODO exis properly
         Undo => {
             if game.history_head == 0 {
                 println!("Nothing to undo");
