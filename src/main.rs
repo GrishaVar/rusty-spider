@@ -14,6 +14,9 @@ enum Input {
     Undo,
     Redo,
     Help,
+    SmartMove{source:usize, target:usize},  // guesses index
+    SmartComp,  // finds a stack to complete
+    Restart,
 }
 
 #[derive(Clone)]
@@ -149,7 +152,7 @@ impl GameState {
     }
     fn discover(&mut self, pile: usize) -> bool {
         println!("{} {} {}", pile, self.hidden[pile], self.piles[pile].len());
-        if self.hidden[pile] == self.piles[pile].len() {
+        if self.hidden[pile] == self.piles[pile].len() && self.hidden[pile] > 0 {
             self.hidden[pile] -= 1;
             true
         } else {false}
@@ -235,6 +238,12 @@ fn game_step(game: &mut GameState, input: Input) {
                 game.history_head += 1;
             }
         },
+        Restart => {
+            while game.history_head > 0 {
+                game.history_head -= 1;
+                undo_action(game, game.history[game.history_head].clone());
+            }
+        },
         Help => {
             println!("H: print this again\nN: new game\nQ: quit\nS: push from stack\nU: undo\nR: redo\nCn: complete nth pile suit\nMxyz: move card of xth pile at index y to zth pile");
         },
@@ -269,6 +278,59 @@ fn game_step(game: &mut GameState, input: Input) {
                 pile.push(game.stack.pop().unwrap());
             }
             game.write(Action::Stack);
+        },
+        SmartComp => {
+            for pos in 0..8 {  // do with for pile in piles?
+                if game.piles[pos].len() < 13 {continue;}
+                if game.piles[pos].last().unwrap().value != Value::Ace {continue;}
+                let i = game.piles[pos].len() - 13;
+                if !is_sequence(&game.piles[pos], i) {continue;}
+                let suit = game.piles[pos].last().unwrap().suit;
+                game.piles[pos].truncate(i);
+                game.completed += 1;
+                if game.completed == 8 {println!("You win!")};
+                let discover = game.discover(pos);
+                game.write(Action::CompleteSuit{pos, suit, discover});
+            }
+        },
+        SmartMove{source, target} => {
+            if game.piles[source].is_empty() {
+                println!("No cards to move");
+                return;
+            }
+            if game.piles[target].is_empty() {
+                if game.piles[source].len() == 1 {
+                    game.piles[target].push(game.piles[source][0]);
+                    game.write(Action::Move{
+                        source,
+                        source_i: 0,
+                        target,
+                        target_i: 0,
+                        discover: false
+                    });
+                } else {println!("Multiple moves possible; use Mxyz notation")}
+                // TODO: allow move if only one card in sequence
+                return;
+            }
+            let value = match game.piles[target].last().unwrap().value.succ() {
+                Some(v) => v,
+                None    => {println!("can't move onto ace"); return;},
+            };
+            let top = game.piles[source].len();  // TODO: avoid declaring this?
+            for source_i in (0..top).rev() {
+                if game.piles[source][source_i].value == value {
+                    if !is_sequence(&game.piles[source], source_i) {
+                        println!("No valid move found"); return;
+                        // TODO: add prints to all returns in this function
+                    }
+                    let target_i = game.piles[target].len();
+                    let cards = &mut game.piles[source].drain(source_i..).collect();
+                    game.piles[target].append(cards);
+                    let discover = game.discover(source);
+                    game.write(Action::Move{source, source_i, target, target_i, discover});
+                    return;  // TODO: don't allow movement of hidden cards
+                }
+            }
         },
     }
 }
@@ -367,6 +429,27 @@ fn parse_text_input() -> Result<Input, &'static str> {
             };
             Ok(Move{source: s, target: t, index: i})
         },
+        // lower chars for big brain
+        b'z' => Ok(Undo),
+        b'y' => Ok(Redo),
+        b'r' => Ok(Restart),
+        b's' => Ok(Stack),
+        b'c' => Ok(SmartComp),
+        b'm' => {  // TODO: fix this nonsense
+            let source: usize = match bytes.next() {
+                Some(Ok(n)) if (b'0'<=n && n<=b'9') => (n-b'0') as usize,
+                Some(Ok(_))    => return Err("2nd char should be a digit!"),
+                Some(Err(_))   => return Err("Failed to read"),
+                None           => return Err("Data not provided"),
+            };
+            let target: usize = match bytes.next() {
+                Some(Ok(n)) if (b'0'<=n && n<=b'9') => (n-b'0') as usize,
+                Some(Ok(_))    => return Err("3rd char should be a digit!"),
+                Some(Err(_))   => return Err("Failed to read"),
+                None           => return Err("Data not provided"),
+            };
+            Ok(SmartMove{source, target})
+        },
         _    => return Err("Invalid char; try H for help"),
     }
 }
@@ -379,7 +462,7 @@ fn print_game(game: &GameState) {
     };
 
     for i in (0..max).rev() {
-        print!("{:x} ", i);
+        print!("{:x}   ", i);
         for (j, pile) in enumerate(&game.piles) {
             match pile.get(i) {
                 None       => print!("   "),
@@ -391,7 +474,7 @@ fn print_game(game: &GameState) {
         }
         println!(" ");
     }
-    println!("   0  1  2  3  4  5  6  7  8  9");
+    println!("     0  1  2  3  4  5  6  7  8  9");
 
 }
 
