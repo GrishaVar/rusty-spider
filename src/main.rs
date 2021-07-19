@@ -320,7 +320,8 @@ fn game_step(game: &mut GameState, input: Input) {
             }
             if game.piles[target].is_empty() {
                 if game.piles[source].len() == 1 {
-                    game.piles[target].push(game.piles[source][0]);
+                    let card = game.piles[source].pop().unwrap();
+                    game.piles[target].push(card);
                     game.write(Action::Move{
                         source,
                         source_i: 0,
