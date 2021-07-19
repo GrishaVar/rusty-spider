@@ -265,10 +265,13 @@ fn game_step(game: &mut GameState, input: Input) {
                 println!("Not in sequence"); return;
             }  // lower cards in a row
             if game.piles[target].len() > 0 {
-                if game.piles[target].last().unwrap().face.succ().unwrap()
-                    != game.piles[source][index].face {
+                match game.piles[target].last().unwrap().face.succ() {
+                    None => {println!("can't move onto ace"); return;},
+                    Some(f) if f != game.piles[source][index].face => {
                         println!("source not succ of target"); return;
-                    }  // source matches target
+                    },
+                    Some(_) => {}, // source matches target
+                }
             }
             let target_i = game.piles[target].len();
             let cards = &mut game.piles[source].drain(index..).collect();
