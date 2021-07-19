@@ -40,64 +40,64 @@ impl Suit {
 }
 
 #[derive(Clone, Copy, PartialEq)]
-enum Value {King, Queen, Jack, Ten, Nine, Eight, Seven, Six, Five, Four, Three, Two, Ace}
-impl Value {
-    const VALUES: [Self; 13] = [
-        Value::King,
-        Value::Queen,
-        Value::Jack,
-        Value::Ten,
-        Value::Nine,
-        Value::Eight,
-        Value::Seven,
-        Value::Six,
-        Value::Five,
-        Value::Four,
-        Value::Three,
-        Value::Two,
-        Value::Ace,
+enum Face {King, Queen, Jack, Ten, Nine, Eight, Seven, Six, Five, Four, Three, Two, Ace}
+impl Face {
+    const FACES: [Self; 13] = [
+        Face::King,
+        Face::Queen,
+        Face::Jack,
+        Face::Ten,
+        Face::Nine,
+        Face::Eight,
+        Face::Seven,
+        Face::Six,
+        Face::Five,
+        Face::Four,
+        Face::Three,
+        Face::Two,
+        Face::Ace,
     ];
 
-    fn succ(&self) -> Option<Self> {  // TODO: implement as a Value^2->Bool predicate?
+    fn succ(&self) -> Option<Self> {  // TODO: implement as a Face^2->Bool predicate?
         match self {
-            Value::King  => Some(Value::Queen),
-            Value::Queen => Some(Value::Jack),
-            Value::Jack  => Some(Value::Ten),
-            Value::Ten   => Some(Value::Nine),
-            Value::Nine  => Some(Value::Eight),
-            Value::Eight => Some(Value::Seven),
-            Value::Seven => Some(Value::Six),
-            Value::Six   => Some(Value::Five),
-            Value::Five  => Some(Value::Four),
-            Value::Four  => Some(Value::Three),
-            Value::Three => Some(Value::Two),
-            Value::Two   => Some(Value::Ace),
-            Value::Ace   => None,
+            Face::King  => Some(Face::Queen),
+            Face::Queen => Some(Face::Jack),
+            Face::Jack  => Some(Face::Ten),
+            Face::Ten   => Some(Face::Nine),
+            Face::Nine  => Some(Face::Eight),
+            Face::Eight => Some(Face::Seven),
+            Face::Seven => Some(Face::Six),
+            Face::Six   => Some(Face::Five),
+            Face::Five  => Some(Face::Four),
+            Face::Four  => Some(Face::Three),
+            Face::Three => Some(Face::Two),
+            Face::Two   => Some(Face::Ace),
+            Face::Ace   => None,
         }
     }
 
     fn to_char(&self) -> char {
         match self {
-            Value::King  => 'K',
-            Value::Queen => 'Q',
-            Value::Jack  => 'J',
-            Value::Ten   => 'T',
-            Value::Nine  => '9',
-            Value::Eight => '8',
-            Value::Seven => '7',
-            Value::Six   => '6',
-            Value::Five  => '5',
-            Value::Four  => '4',
-            Value::Three => '3',
-            Value::Two   => '2',
-            Value::Ace   => 'A',
+            Face::King  => 'K',
+            Face::Queen => 'Q',
+            Face::Jack  => 'J',
+            Face::Ten   => 'T',
+            Face::Nine  => '9',
+            Face::Eight => '8',
+            Face::Seven => '7',
+            Face::Six   => '6',
+            Face::Five  => '5',
+            Face::Four  => '4',
+            Face::Three => '3',
+            Face::Two   => '2',
+            Face::Ace   => 'A',
         }
     }
 }
 
 #[derive(Clone, Copy, PartialEq)]
 struct Card {
-    value: Value,  // TODO use char or u8?
+    face: Face,
     suit: Suit,
 }
 impl Card {
@@ -105,7 +105,7 @@ impl Card {
         if hidden {
             String::from("? ?")
         } else {
-            format!("{} {}", self.suit.to_char(), self.value.to_char())
+            format!("{} {}", self.suit.to_char(), self.face.to_char())
         }
     }
     fn to_char(&self, hidden: bool) -> char {
@@ -118,27 +118,27 @@ impl Card {
                     Suit::Hearts   => 0xB0,
                     Suit::Diamonds => 0xC0,
                     Suit::Clubs    => 0xD0,
-                } | match self.value {
-                    Value::King  => 0x0E,
-                    Value::Queen => 0x0D,
-                    Value::Jack  => 0x0B,
-                    Value::Ten   => 0x0A,
-                    Value::Nine  => 0x09,
-                    Value::Eight => 0x08,
-                    Value::Seven => 0x07,
-                    Value::Six   => 0x06,
-                    Value::Five  => 0x05,
-                    Value::Four  => 0x04,
-                    Value::Three => 0x03,
-                    Value::Two   => 0x02,
-                    Value::Ace   => 0x01,
+                } | match self.face {
+                    Face::King  => 0x0E,
+                    Face::Queen => 0x0D,
+                    Face::Jack  => 0x0B,
+                    Face::Ten   => 0x0A,
+                    Face::Nine  => 0x09,
+                    Face::Eight => 0x08,
+                    Face::Seven => 0x07,
+                    Face::Six   => 0x06,
+                    Face::Five  => 0x05,
+                    Face::Four  => 0x04,
+                    Face::Three => 0x03,
+                    Face::Two   => 0x02,
+                    Face::Ace   => 0x01,
                 }
             }
         ).expect("Grigri has refused to make an informative error message, but something is bad :(")
     }
 }
 
-struct GameState {  // TODO: change value to face
+struct GameState {
     stack: Vec<Card>,
     piles: [Vec<Card>; 10],
     hidden: [usize; 10],
@@ -175,9 +175,10 @@ fn generate_deck(suits: u8) -> Vec<Card> {
     };
 
     // cartesian product - makes a card for every suit/face combination
-    let mut cards: Vec<Card> = iproduct!(suits, Value::VALUES)
-        .map(|(suit, value)| Card{suit, value})
+    let mut cards: Vec<Card> = iproduct!(suits, Face::FACES)
+        .map(|(suit, face)| Card{suit, face})
         .collect();
+    // TODO: make 3 decks as const arrays and just choose one of them?
 
     // shuffle deck
     let mut rng = thread_rng();
@@ -216,10 +217,10 @@ fn is_sequence(pile: &Vec<Card>, index: usize) -> bool {
     let slice2 = &pile[(index+1)..];
  
     for (pred, succ) in slice1.iter().zip(slice2) {
-        if pred.value.succ().is_none() {
+        if pred.face.succ().is_none() {
             return false
         }
-        if pred.value.succ().unwrap() != succ.value {
+        if pred.face.succ().unwrap() != succ.face {
             return false
         }
         if pred.suit != succ.suit {
@@ -264,8 +265,8 @@ fn game_step(game: &mut GameState, input: Input) {
                 println!("Not in sequence"); return;
             }  // lower cards in a row
             if game.piles[target].len() > 0 {
-                if game.piles[target].last().unwrap().value.succ().unwrap()
-                    != game.piles[source][index].value {
+                if game.piles[target].last().unwrap().face.succ().unwrap()
+                    != game.piles[source][index].face {
                         println!("source not succ of target"); return;
                     }  // source matches target
             }
@@ -299,7 +300,7 @@ fn game_step(game: &mut GameState, input: Input) {
         SmartComp => {
             for pos in 0..10 {  // do with for pile in piles?
                 if game.piles[pos].len() < 13 {continue;}
-                if game.piles[pos].last().unwrap().value != Value::Ace {continue;}
+                if game.piles[pos].last().unwrap().face != Face::Ace {continue;}
                 let i = game.piles[pos].len() - 13;
                 if !is_sequence(&game.piles[pos], i) {continue;}
                 let suit = game.piles[pos].last().unwrap().suit;
@@ -329,13 +330,13 @@ fn game_step(game: &mut GameState, input: Input) {
                 // TODO: allow move if only sequence cards visible
                 return;
             }
-            let value = match game.piles[target].last().unwrap().value.succ() {
-                Some(v) => v,
+            let face = match game.piles[target].last().unwrap().face.succ() {
+                Some(f) => f,
                 None    => {println!("can't move onto ace"); return;},
             };
             let top = game.piles[source].len();  // TODO: avoid declaring this?
             for source_i in (0..top).rev() {
-                if game.piles[source][source_i].value == value {
+                if game.piles[source][source_i].face == face {
                     if !is_sequence(&game.piles[source], source_i) {
                         println!("No valid move found"); return;
                         // TODO: add prints to all returns in this function
@@ -348,6 +349,7 @@ fn game_step(game: &mut GameState, input: Input) {
                     return;  // TODO: don't allow movement of hidden cards
                 }
             }
+            println!("No valid move found");
         },
     }
 }
@@ -361,8 +363,8 @@ fn undo_action(game: &mut GameState, action: Action) {
             }
         }
         CompleteSuit {pos, suit, discover} => {
-            for value in Value::VALUES {
-                game.piles[pos].push(Card{suit, value});
+            for face in Face::FACES {
+                game.piles[pos].push(Card{suit, face});
             }
             if discover {game.hidden[pos] += 1;}
         }
@@ -411,7 +413,7 @@ fn parse_text_input() -> Result<Input, &'static str> {
     //while bytes.next().is_some() {}  // nice
 
     match first_byte {
-        10   => return Err(""),  // TODO: something's very wrong here
+        10   => return Err(""),  // TODO: something's very wrong here  @Berg
         b'H' => Ok(Help),
         b'N' => Ok(NewGame),
         b'Q' => Ok(Quit),
