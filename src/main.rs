@@ -189,8 +189,9 @@ fn init_game(deck: Vec<Card>) -> GameState {
     GameState {
         stack: (&deck[..50]).to_vec(),
         piles: [
-            {let mut v: Vec<Card> = Vec::with_capacity(25); v.extend_from_slice(&deck[50..55]); v},
-            //(Vec::with_capacity(25)).extend_from_slice(&deck[50..55]),
+            //{let mut v: Vec<Card> = Vec::with_capacity(25); v.extend_from_slice(&deck[50..55]); v},
+            // TODO: set the capacities? Like line above but do it nicely
+            (&deck[50..55]).to_vec(),
             (&deck[55..60]).to_vec(),
             (&deck[60..65]).to_vec(),
             (&deck[65..70]).to_vec(),
@@ -212,7 +213,7 @@ fn is_sequence(pile: &Vec<Card>, index: usize) -> bool {
     if index + 1 == pile.len() {return true}
 
     let slice1 = &pile[index..];
-    let slice2 = {let i = index+1; &pile[i..]};
+    let slice2 = &pile[(index+1)..];
  
     for (pred, succ) in slice1.iter().zip(slice2) {
         if pred.value.succ().is_none() {
@@ -259,10 +260,14 @@ fn game_step(game: &mut GameState, input: Input) {
             println!("H: print this again\nN: new game\nQ: quit\nS: push from stack\nU: undo\nR: redo\nCn: complete nth pile suit\nMxyz: move card of xth pile at index y to zth pile");
         },
         Move {source, index, target} => {
-            if !is_sequence(&game.piles[source], index) {return}  // lower cards in a row
+            if !is_sequence(&game.piles[source], index) {
+                println!("Not in sequence"); return;
+            }  // lower cards in a row
             if game.piles[target].len() > 0 {
                 if game.piles[target].last().unwrap().value.succ().unwrap()
-                    != game.piles[source][index].value {return}  // source matches target
+                    != game.piles[source][index].value {
+                        println!("source not succ of target"); return;
+                    }  // source matches target
             }
             let target_i = game.piles[target].len();
             let cards = &mut game.piles[source].drain(index..).collect();
@@ -272,7 +277,9 @@ fn game_step(game: &mut GameState, input: Input) {
         },
         CompleteSuit{pos} => {
             let i = game.piles[pos].len() - 13;
-            if !is_sequence(&game.piles[pos], i) {return}
+            if !is_sequence(&game.piles[pos], i) {
+                println!("Not in sequence"); return;
+            }
             let suit = game.piles[pos].last().unwrap().suit;
             game.piles[pos].truncate(i);
             game.completed += 1;
@@ -282,8 +289,7 @@ fn game_step(game: &mut GameState, input: Input) {
         },
         Stack => {
             if game.stack.len() == 0 {
-                println!("Stack exhausted");
-                return;
+                println!("Stack exhausted"); return;
             }
             for pile in &mut game.piles {
                 pile.push(game.stack.pop().unwrap());
@@ -291,7 +297,7 @@ fn game_step(game: &mut GameState, input: Input) {
             game.write(Action::Stack);
         },
         SmartComp => {
-            for pos in 0..8 {  // do with for pile in piles?
+            for pos in 0..10 {  // do with for pile in piles?
                 if game.piles[pos].len() < 13 {continue;}
                 if game.piles[pos].last().unwrap().value != Value::Ace {continue;}
                 let i = game.piles[pos].len() - 13;
@@ -306,8 +312,7 @@ fn game_step(game: &mut GameState, input: Input) {
         },
         SmartMove{source, target} => {
             if game.piles[source].is_empty() {
-                println!("No cards to move");
-                return;
+                println!("No cards to move"); return;
             }
             if game.piles[target].is_empty() {
                 if game.piles[source].len() == 1 {
@@ -321,6 +326,7 @@ fn game_step(game: &mut GameState, input: Input) {
                     });
                 } else {println!("Multiple moves possible; use Mxyz notation")}
                 // TODO: allow move if only one card in sequence
+                // TODO: allow move if only sequence cards visible
                 return;
             }
             let value = match game.piles[target].last().unwrap().value.succ() {
@@ -486,7 +492,6 @@ fn print_game(game: &GameState) {
         println!(" ");
     }
     println!("     0  1  2  3  4  5  6  7  8  9");
-
 }
 
 fn main() {
