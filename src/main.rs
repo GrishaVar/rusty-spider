@@ -4,6 +4,7 @@ use rand::seq::SliceRandom;
 use itertools::iproduct;
 use itertools::enumerate;
 use std::char;
+use radix_fmt::radix_36;
 
 enum Input {
     NewGame,
@@ -486,7 +487,7 @@ fn print_game(game: &GameState) {
     };
 
     for i in (0..max).rev() {
-        print!("{:x}   ", i);
+        print!("{}   ", radix_36(i));
         for (j, pile) in enumerate(&game.piles) {
             match pile.get(i) {
                 None       => print!("   "),
