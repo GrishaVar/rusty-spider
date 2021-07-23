@@ -6,6 +6,19 @@ use itertools::enumerate;
 use std::char;
 use radix_fmt::radix_36;
 
+const HELP_TEXT: &str = "H: print this again
+Q: quit
+U/z: undo
+R/y: redo
+r: restart (max undo)
+
+S/s: push from stack
+Cn: complete nth pile suit
+Mxyz: move card of xth pile at index y to zth pile
+c: smart complete all finished suits
+mxz: smart move from xth pile to zth pile
+";
+
 enum Input {
     NewGame,
     Quit,
@@ -260,7 +273,7 @@ fn game_step(game: &mut GameState, input: Input) {
             }
         },
         Help => {
-            println!("H: print this again\nN: new game\nQ: quit\nS: push from stack\nU: undo\nR: redo\nCn: complete nth pile suit\nMxyz: move card of xth pile at index y to zth pile");
+            println!("{}", HELP_TEXT);
         },
         Move {source, index, target} => {
             if !game.is_sequence(source, index) {
@@ -415,9 +428,6 @@ fn parse_text_input() -> Result<Input, &'static str> {
         Some(Err(_))   => return Err("Failed to read"),
         None           => return Err("Empty input; try H for help"),
     };
-
-    //let (arg1, arg2, arg3) = (bytes.next(), bytes.next(), bytes.next());
-    //while bytes.next().is_some() {}  // nice
 
     match first_byte {
         10   => return Err(""),  // TODO: something's very wrong here  @Berg
