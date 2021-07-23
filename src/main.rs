@@ -154,13 +154,34 @@ impl GameState {
     }
 
     fn discover(&mut self, pile: usize) -> bool {
-        println!("{} {} {}", pile, self.hidden[pile], self.piles[pile].len());
         if self.hidden[pile] == self.piles[pile].len() && self.hidden[pile] > 0 {
             self.hidden[pile] -= 1;
             return true
         } else {
             return false
         }
+    }
+    fn is_sequence(&self, pile: usize, index: usize) -> bool {
+        if self.hidden[pile] > index {return false}  // block sequence for hidden cards
+
+        let pile = &self.piles[pile];
+        if index + 1 == pile.len() {return true}
+
+        let slice1 = &pile[index..];
+        let slice2 = &pile[(index+1)..];
+     
+        for (pred, succ) in slice1.iter().zip(slice2) {
+            if pred.face.succ().is_none() {
+                return false
+            }
+            if pred.face.succ().unwrap() != succ.face {
+                return false
+            }
+            if pred.suit != succ.suit {
+                return false
+            }
+        }
+        return true
     }
 }
 
@@ -210,26 +231,6 @@ fn init_game(deck: Vec<Card>) -> GameState {
     }
 }
 
-fn is_sequence(pile: &Vec<Card>, index: usize) -> bool {
-    if index + 1 == pile.len() {return true}
-
-    let slice1 = &pile[index..];
-    let slice2 = &pile[(index+1)..];
- 
-    for (pred, succ) in slice1.iter().zip(slice2) {
-        if pred.face.succ().is_none() {
-            return false
-        }
-        if pred.face.succ().unwrap() != succ.face {
-            return false
-        }
-        if pred.suit != succ.suit {
-            return false
-        }
-    }
-    return true
-}
-
 fn game_step(game: &mut GameState, input: Input) {
     use Input::*;
     match input {
@@ -261,7 +262,7 @@ fn game_step(game: &mut GameState, input: Input) {
             println!("H: print this again\nN: new game\nQ: quit\nS: push from stack\nU: undo\nR: redo\nCn: complete nth pile suit\nMxyz: move card of xth pile at index y to zth pile");
         },
         Move {source, index, target} => {
-            if !is_sequence(&game.piles[source], index) {
+            if !game.is_sequence(source, index) {
                 println!("Not in sequence"); return;
             }  // lower cards in a row
             if game.piles[target].len() > 0 {
@@ -281,7 +282,7 @@ fn game_step(game: &mut GameState, input: Input) {
         },
         CompleteSuit{pos} => {
             let i = game.piles[pos].len() - 13;
-            if !is_sequence(&game.piles[pos], i) {
+            if !game.is_sequence(pos, i) {
                 println!("Not in sequence"); return;
             }
             let suit = game.piles[pos].last().unwrap().suit;
@@ -305,7 +306,7 @@ fn game_step(game: &mut GameState, input: Input) {
                 if game.piles[pos].len() < 13 {continue;}
                 if game.piles[pos].last().unwrap().face != Face::Ace {continue;}
                 let i = game.piles[pos].len() - 13;
-                if !is_sequence(&game.piles[pos], i) {continue;}
+                if !game.is_sequence(pos, i) {continue;}
                 let suit = game.piles[pos].last().unwrap().suit;
                 game.piles[pos].truncate(i);
                 game.completed += 1;
@@ -341,7 +342,7 @@ fn game_step(game: &mut GameState, input: Input) {
             let top = game.piles[source].len();  // TODO: avoid declaring this?
             for source_i in (0..top).rev() {
                 if game.piles[source][source_i].face == face {
-                    if !is_sequence(&game.piles[source], source_i) {
+                    if !game.is_sequence(source, source_i) {
                         println!("No valid move found"); return;
                         // TODO: add prints to all returns in this function
                     }
