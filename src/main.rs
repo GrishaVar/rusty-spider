@@ -157,9 +157,9 @@ impl GameState {
     fn discover(&mut self, pile: usize) -> bool {
         if self.hidden[pile] == self.piles[pile].len() && self.hidden[pile] > 0 {
             self.hidden[pile] -= 1;
-            return true
+            true
         } else {
-            return false
+            false
         }
     }
     fn is_sequence(&self, pile: usize, index: usize) -> bool {
@@ -321,19 +321,20 @@ fn game_step(game: &mut GameState, input: Input) {
                 println!("No cards to move"); return;
             }
             if game.piles[target].is_empty() {
-                if game.piles[source].len() == 1 {
+                let len = game.piles[source].len();
+                if len == 1 || !game.is_sequence(source, len-2) {
+                    // no sequence of length 2 => only one possible move
                     let card = game.piles[source].pop().unwrap();
+                    let discover = game.discover(source);
                     game.piles[target].push(card);
                     game.write(Action::Move{
                         source,
-                        source_i: 0,
+                        source_i: len-2,
                         target,
                         target_i: 0,
-                        discover: false
+                        discover,
                     });
                 } else {println!("Multiple moves possible; use Mxyz notation")}
-                // TODO: allow move if only one card in sequence
-                // TODO: allow move if only sequence cards visible
                 return;
             }
             let face = match game.piles[target].last().unwrap().face.succ() {
@@ -352,7 +353,7 @@ fn game_step(game: &mut GameState, input: Input) {
                     game.piles[target].append(cards);
                     let discover = game.discover(source);
                     game.write(Action::Move{source, source_i, target, target_i, discover});
-                    return;  // TODO: don't allow movement of hidden cards
+                    return;
                 }
             }
             println!("No valid move found");
