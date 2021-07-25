@@ -491,11 +491,7 @@ fn parse_text_input() -> Result<Input, &'static str> {
 }
 
 fn print_game(game: &GameState) {
-    let max: usize = {
-        let mut max = 0;
-        for pile in &game.piles{if max < pile.len() {max = pile.len()}};
-        max  // TODO: there is def. a better way.
-    };
+    let max: usize = game.piles.iter().map(|p| p.len()).max().unwrap_or(0);
 
     for i in (0..max).rev() {
         print!("{}   ", radix_36(i));
