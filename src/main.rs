@@ -148,7 +148,7 @@ impl Card {
                     Face::Ace   => 0x01,
                 }
             }
-        ).expect("Grigri has refused to make an informative error message, but something is bad :(")
+        ).unwrap()
     }
 }
 
