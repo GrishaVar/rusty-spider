@@ -378,7 +378,7 @@ fn undo_action(game: &mut GameState, action: Action) {
     use Action::*;
     match action {
         Stack => {
-            for pile in &mut game.piles {  // TODO: reverse this in a nice way
+            for pile in game.piles.iter_mut().rev() {
                 game.stack.push(pile.pop().unwrap());
             }
         }
